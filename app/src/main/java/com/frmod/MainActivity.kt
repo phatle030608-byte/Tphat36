@@ -42,15 +42,14 @@ class MainActivity : AppCompatActivity() {
         // --- TITLE ---
         ll.addView(TextView(this).apply {
             text = "TPHAT36 MENU"
-            textSize = 26f
+            textSize = 28f
             setTextColor(Color.parseColor("#FF4444"))
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 40)
+            setPadding(0, 0, 0, 30)
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
 
-        // Hàm tạo nền cho EditText và Button
-        fun createBg(color: String, radius: Float = 20f): GradientDrawable {
+        fun createBg(color: String, radius: Float = 25f): GradientDrawable {
             return GradientDrawable().apply {
                 setColor(Color.parseColor(color))
                 cornerRadius = radius
@@ -58,13 +57,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun textField(label: String, get: () -> String, set: (String) -> Unit) {
-            ll.addView(TextView(this).apply { text = label; textSize = 14f; setTextColor(Color.LTGRAY); setPadding(0, 20, 0, 10) })
+            ll.addView(TextView(this).apply { text = label; textSize = 14f; setTextColor(Color.LTGRAY); setPadding(0, 15, 0, 5) })
             val e = EditText(this).apply {
                 setText(get())
                 setTextColor(Color.WHITE)
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                 textSize = 16f
-                background = createBg("#2A2A2A")
+                background = createBg("#1E1E1E")
                 setPadding(30, 30, 30, 30)
             }
             e.setOnFocusChangeListener { _, has -> if (!has) set(e.text.toString().trim()) }
@@ -72,13 +71,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun floatField(label: String, get: () -> Float, set: (Float) -> Unit) {
-            ll.addView(TextView(this).apply { text = label; textSize = 14f; setTextColor(Color.LTGRAY); setPadding(0, 20, 0, 10) })
+            ll.addView(TextView(this).apply { text = label; textSize = 14f; setTextColor(Color.LTGRAY); setPadding(0, 15, 0, 5) })
             val e = EditText(this).apply {
                 setText(get().toString())
                 setTextColor(Color.WHITE)
                 inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
                 textSize = 16f
-                background = createBg("#2A2A2A")
+                background = createBg("#1E1E1E")
                 setPadding(30, 30, 30, 30)
             }
             e.setOnFocusChangeListener { _, has -> if (!has) set(e.text.toString().toFloatOrNull() ?: 0f) }
@@ -90,24 +89,27 @@ class MainActivity : AppCompatActivity() {
             text = "⚡ AUTO FILL OFFSET MẪU ⚡"
             setTextColor(Color.WHITE)
             textSize = 16f
+            setTypeface(null, android.graphics.Typeface.BOLD)
             background = createBg("#0088FF")
-            setPadding(0, 30, 0, 30)
+            setPadding(0, 40, 0, 40)
             setOnClickListener {
-                Prefs.localPos = 0xA83F54
-                Prefs.yaw = 0x9C2A10
-                Prefs.pitch = 0x9C2A14
-                Prefs.plistBase = 0xA84000
-                Prefs.plistCount = 0xA84004
-                Prefs.plistSize = 0x100
-                Prefs.plistPos = 0x40
-                Prefs.plistTeam = 0x68
-                Prefs.plistHp = 0x70
-                buildUI() // Load lại giao diện
-                Toast.makeText(this@MainActivity, "Đã điền Offset mẫu!", Toast.LENGTH_SHORT).show()
+                Prefs.localPos = 0x238
+                Prefs.yaw = 0x2C
+                Prefs.pitch = 0x30
+                Prefs.plistBase = 0x158
+                Prefs.plistCount = 0x18
+                Prefs.plistSize = 0x8
+                Prefs.plistPos = 0x0
+                Prefs.plistTeam = 0x34
+                Prefs.plistHp = 0x228
+                buildUI()
+                Toast.makeText(this@MainActivity, "Đã điền Offset FF VN!", Toast.LENGTH_SHORT).show()
             }
         })
 
-        ll.addView(TextView(this).apply { text = "--- OFFSETS (HEX) ---"; textSize = 15f; setTextColor(Color.GRAY); setPadding(0, 30, 0, 10) })
+        ll.addView(Space(this).apply { minimumHeight = 30 })
+
+        ll.addView(TextView(this).apply { text = "--- OFFSETS (HEX) ---"; textSize = 15f; setTextColor(Color.GRAY); setPadding(0, 20, 0, 10) })
 
         textField("Module name", { Prefs.moduleName }, { Prefs.moduleName = it })
         textField("localPos offset", { Prefs.localPos.toString(16) }) { Prefs.localPos = it.toLongOrNull(16) ?: 0L }
@@ -125,22 +127,21 @@ class MainActivity : AppCompatActivity() {
         floatField("FOV pixels", { Prefs.fov }, { Prefs.fov = it })
         floatField("Smooth (0.1 - 1.0)", { Prefs.smooth }, { Prefs.smooth = it })
 
-        // Hàm tạo Switch (Công tắc) đẹp hơn CheckBox
         fun addSwitch(text: String, get: () -> Boolean, set: (Boolean) -> Unit) {
-            val sw = Switch(this).apply {
+            ll.addView(Switch(this).apply {
                 this.text = text
                 textSize = 16f
                 setTextColor(Color.WHITE)
                 isChecked = get()
-                setPadding(0, 20, 0, 20)
+                setPadding(0, 15, 0, 15)
                 setOnCheckedChangeListener { _, v -> set(v) }
-            }
-            ll.addView(sw)
+            })
         }
 
         addSwitch("Bật Tự Động Ngắm (Aim)", { Prefs.aimOn }, { Prefs.aimOn = it })
         addSwitch("Bật Khung ESP", { Prefs.espOn }, { Prefs.espOn = it })
-        addSwitch("Bỏ qua đồng đội (Team Check)", { Prefs.teamCheck }, { Prefs.teamCheck = it })
+        addSwitch("Bỏ qua đồng đội", { Prefs.teamCheck }, { Prefs.teamCheck = it })
+        addSwitch("Tự Động Bắn Đầu (Headshot)", { Prefs.headshotOn }, { Prefs.headshotOn = it })
 
         ll.addView(Space(this).apply { minimumHeight = 60 })
 
@@ -148,16 +149,16 @@ class MainActivity : AppCompatActivity() {
         ll.addView(Button(this).apply {
             text = "▶ BẬT HACK (START)"
             setTextColor(Color.WHITE)
-            textSize = 20f
+            textSize = 22f
             setTypeface(null, android.graphics.Typeface.BOLD)
-            background = createBg("#00CC44") // Xanh lá
-            setPadding(0, 40, 0, 40)
+            background = createBg("#00CC44")
+            setPadding(0, 45, 0, 45)
             setOnClickListener {
                 if (!Settings.canDrawOverlays(this@MainActivity)) {
                     startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
                 } else {
                     startForegroundService(Intent(this@MainActivity, OverlayService::class.java))
-                    Toast.makeText(this@MainActivity, "Đã bật Hack. Vào FF Max thôi!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Đã bật Hack. Vào FF VN thôi!", Toast.LENGTH_SHORT).show()
                 }
             }
         })
@@ -169,8 +170,8 @@ class MainActivity : AppCompatActivity() {
             text = "⏹ TẮT HACK (STOP)"
             setTextColor(Color.WHITE)
             textSize = 18f
-            background = createBg("#CC0000") // Đỏ
-            setPadding(0, 30, 0, 30)
+            background = createBg("#CC0000")
+            setPadding(0, 35, 0, 35)
             setOnClickListener {
                 stopService(Intent(this@MainActivity, OverlayService::class.java))
                 Toast.makeText(this@MainActivity, "Đã tắt Hack.", Toast.LENGTH_SHORT).show()
