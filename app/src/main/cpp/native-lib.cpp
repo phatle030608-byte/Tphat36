@@ -26,10 +26,11 @@ static std::atomic<bool> g_run{false};
 static std::atomic<bool> g_aim{false};
 static std::atomic<bool> g_esp{true};
 static std::atomic<bool> g_teamCheck{true};
+static std::atomic<bool> g_headshot{true}; // MẶC ĐỊNH BẬT AIM ĐẦU
 static float g_fovPx = 200.f;
 static float g_smooth = 0.4f;
 static float g_screenW = 2400.f, g_screenH = 1080.f, g_fovY = 90.f;
-static float g_aimHeight = 45.0f;
+static float g_aimHeight = 55.0f; // ĐỘ CAO ĐỂ AIM LÊN ĐẦU
 
 static std::vector<PlayerOut> g_players;
 static std::mutex g_plMutex;
@@ -58,22 +59,13 @@ static void loop() {
         float ly = mr::read_f32(local + g_off.localPos + 4);
         float lz = mr::read_f32(local + g_off.localPos + 8);
 
-        // --- ĐỌC CHUẨN CẤU TRÚC LIST<PLAYER> CỦA UNITY ---
-        uintptr_t plist_obj = (uintptr_t)mr::read_i32(g_off.plistBase);
-        if (!plist_obj) {
+        uintptr_t plist = (uintptr_t)mr::read_i32(g_off.plistBase);
+        if (!plist) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
-        
-        int count = mr::read_i32(plist_obj + g_off.plistCount); // List Count (thường 0x18)
+        int count = mr::read_i32(plist + g_off.plistCount);
         if (count <= 0 || count > 60) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            continue;
-        }
-
-        // List chứa con trỏ tới mảng _items (thường 0x10)
-        uintptr_t items_ptr = (uintptr_t)mr::read_i32(plist_obj + 0x10); 
-        if (!items_ptr) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -88,8 +80,7 @@ static void loop() {
         bool haveTarget = false;
 
         for (int i = 0; i < count; i++) {
-            // Đọc từng con trỏ Player trong mảng (64-bit là 8 byte)
-            uintptr_t p = (uintptr_t)mr::read_i32(items_ptr + i * 8); 
+            uintptr_t p = (uintptr_t)mr::read_i32(plist + i * 8); // List pointer
             if (!p) continue;
 
             int32_t team = mr::read_i32(p + g_off.plistTeam);
@@ -113,7 +104,9 @@ static void loop() {
             if (g_teamCheck.load() && team == lteam) continue;
 
             float hYaw = std::atan2(dx, dz) * 57.2958f;
-            float hPitch = std::atan2((dy + g_aimHeight), std::hypot(dx, dz)) * 57.2958f;
+            // NẾU BẬT HEADSHOT THÌ CỘNG THÊM CHIỀU CAO
+            float aimY = g_headshot.load() ? (dy + g_aimHeight) : dy;
+            float hPitch = std::atan2(aimY, std::hypot(dx, dz)) * 57.2958f;
             
             float curYaw = mr::read_f32(local + g_off.yaw);
             float curPitch = mr::read_f32(local + g_off.pitch);
@@ -160,23 +153,19 @@ static void loop() {
 
 extern "C" {
 
-JNIEXPORT jboolean JNICALL
-Java_com_frmod_NativeBridge_attach(JNIEnv*, jclass, jint pid) {
+JNIEXPORT jboolean JNICALL Java_com_frmod_NativeBridge_attach(JNIEnv*, jclass, jint pid) {
     return mr::attach(pid) ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT jlong JNICALL
-Java_com_frmod_NativeBridge_getModuleBase(JNIEnv* env, jclass, jstring name) {
+JNIEXPORT jlong JNICALL Java_com_frmod_NativeBridge_getModuleBase(JNIEnv* env, jclass, jstring name) {
     const char* n = env->GetStringUTFChars(name, nullptr);
     uintptr_t b = mr::find_module_base(mr::get_pid(), n);
     env->ReleaseStringUTFChars(name, n);
     return (jlong)b;
 }
 
-JNIEXPORT void JNICALL
-Java_com_frmod_NativeBridge_setOffsets(JNIEnv*, jclass,
-    jlong lb, jlong lp, jlong y, jlong p,
-    jlong pb, jlong pc, jlong ps, jlong pp, jlong pt, jlong ph) {
+JNIEXPORT void JNICALL Java_com_frmod_NativeBridge_setOffsets(JNIEnv*, jclass,
+    jlong lb, jlong lp, jlong y, jlong p, jlong pb, jlong pc, jlong ps, jlong pp, jlong pt, jlong ph) {
     g_off.localBase = (uintptr_t)lb; g_off.localPos = (uintptr_t)lp;
     g_off.yaw = (uintptr_t)y; g_off.pitch = (uintptr_t)p;
     g_off.plistBase = (uintptr_t)pb; g_off.plistCount = (uintptr_t)pc;
@@ -184,83 +173,61 @@ Java_com_frmod_NativeBridge_setOffsets(JNIEnv*, jclass,
     g_off.plistTeam = (uintptr_t)pt; g_off.plistHp = (uintptr_t)ph;
 }
 
-JNIEXPORT jboolean JNICALL
-Java_com_frmod_NativeBridge_startLoop(JNIEnv*, jclass) {
+JNIEXPORT jboolean JNICALL Java_com_frmod_NativeBridge_startLoop(JNIEnv*, jclass) {
     if (g_run.exchange(true)) return JNI_TRUE;
     std::thread(loop).detach();
     return JNI_TRUE;
 }
 
-JNIEXPORT void JNICALL
-Java_com_frmod_NativeBridge_stopLoop(JNIEnv*, jclass) {
-    g_run.store(false);
-    mr::detach();
+JNIEXPORT void JNICALL Java_com_frmod_NativeBridge_stopLoop(JNIEnv*, jclass) {
+    g_run.store(false); mr::detach();
 }
 
-JNIEXPORT void JNICALL
-Java_com_frmod_NativeBridge_setAim(JNIEnv*, jclass, jboolean en, jfloat fov, jfloat sm, jboolean tc) {
-    g_aim.store(en); g_fovPx = fov; g_smooth = sm; g_teamCheck.store(tc);
+JNIEXPORT void JNICALL Java_com_frmod_NativeBridge_setAim(JNIEnv*, jclass, jboolean en, jfloat fov, jfloat sm, jboolean tc, jboolean hs) {
+    g_aim.store(en); g_fovPx = fov; g_smooth = sm; g_teamCheck.store(tc); g_headshot.store(hs);
 }
 
-JNIEXPORT void JNICALL
-Java_com_frmod_NativeBridge_setEsp(JNIEnv*, jclass, jboolean en) {
+JNIEXPORT void JNICALL Java_com_frmod_NativeBridge_setEsp(JNIEnv*, jclass, jboolean en) {
     g_esp.store(en);
 }
 
-JNIEXPORT jfloatArray JNICALL
-Java_com_frmod_NativeBridge_getPlayers(JNIEnv* env, jclass) {
+JNIEXPORT jfloatArray JNICALL Java_com_frmod_NativeBridge_getPlayers(JNIEnv* env, jclass) {
     std::lock_guard<std::mutex> lk(g_plMutex);
     size_t n = g_players.size();
     jfloatArray arr = env->NewFloatArray((jsize)(n * 6));
     if (n) {
         std::vector<float> flat(n * 6);
         for (size_t i = 0; i < n; i++) {
-            flat[i * 6 + 0] = g_players[i].x;
-            flat[i * 6 + 1] = g_players[i].y;
-            flat[i * 6 + 2] = g_players[i].z;
-            flat[i * 6 + 3] = g_players[i].hp;
-            flat[i * 6 + 4] = g_players[i].team;
-            flat[i * 6 + 5] = g_players[i].dist;
+            flat[i * 6 + 0] = g_players[i].x; flat[i * 6 + 1] = g_players[i].y; flat[i * 6 + 2] = g_players[i].z;
+            flat[i * 6 + 3] = g_players[i].hp; flat[i * 6 + 4] = g_players[i].team; flat[i * 6 + 5] = g_players[i].dist;
         }
         env->SetFloatArrayRegion(arr, 0, (jsize)flat.size(), flat.data());
     }
     return arr;
 }
 
-JNIEXPORT jfloatArray JNICALL
-Java_com_frmod_NativeBridge_getLocalPos(JNIEnv* env, jclass) {
-    jfloatArray arr = env->NewFloatArray(3);
-    float v[3] = {0, 0, 0};
+JNIEXPORT jfloatArray JNICALL Java_com_frmod_NativeBridge_getLocalPos(JNIEnv* env, jclass) {
+    jfloatArray arr = env->NewFloatArray(3); float v[3] = {0, 0, 0};
     if (g_off.localBase) {
         uintptr_t local = (uintptr_t)mr::read_i32(g_off.localBase);
         if (local) {
-            v[0] = mr::read_f32(local + g_off.localPos);
-            v[1] = mr::read_f32(local + g_off.localPos + 4);
-            v[2] = mr::read_f32(local + g_off.localPos + 8);
+            v[0] = mr::read_f32(local + g_off.localPos); v[1] = mr::read_f32(local + g_off.localPos + 4); v[2] = mr::read_f32(local + g_off.localPos + 8);
         }
     }
-    env->SetFloatArrayRegion(arr, 0, 3, v);
-    return arr;
+    env->SetFloatArrayRegion(arr, 0, 3, v); return arr;
 }
 
-JNIEXPORT jfloatArray JNICALL
-Java_com_frmod_NativeBridge_getCam(JNIEnv* env, jclass) {
-    jfloatArray arr = env->NewFloatArray(2);
-    float v[2] = {0, 0};
+JNIEXPORT jfloatArray JNICALL Java_com_frmod_NativeBridge_getCam(JNIEnv* env, jclass) {
+    jfloatArray arr = env->NewFloatArray(2); float v[2] = {0, 0};
     if (g_off.localBase) {
         uintptr_t local = (uintptr_t)mr::read_i32(g_off.localBase);
-        if (local) {
-            v[0] = mr::read_f32(local + g_off.yaw);
-            v[1] = mr::read_f32(local + g_off.pitch);
-        }
+        if (local) { v[0] = mr::read_f32(local + g_off.yaw); v[1] = mr::read_f32(local + g_off.pitch); }
     }
-    env->SetFloatArrayRegion(arr, 0, 2, v);
-    return arr;
+    env->SetFloatArrayRegion(arr, 0, 2, v); return arr;
 }
 
-JNIEXPORT void JNICALL
-Java_com_frmod_NativeBridge_setViewport(JNIEnv*, jclass, jfloat w, jfloat h, jfloat fov) {
+JNIEXPORT void JNICALL Java_com_frmod_NativeBridge_setViewport(JNIEnv*, jclass, jfloat w, jfloat h, jfloat fov) {
     g_screenW = w; g_screenH = h; g_fovY = fov;
 }
 
-} // extern "C"
+}
