@@ -24,10 +24,11 @@ jobs:
         ndk-version: r25b
 
     - name: Build with Gradle
-      uses: gradle/gradle-build-action@v3
-      with:
-        arguments: assembleDebug
-        gradle-version: 8.5
+      run: |
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+        echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
+        gradle wrapper --gradle-version 8.5
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
