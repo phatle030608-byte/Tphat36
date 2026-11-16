@@ -29,6 +29,7 @@ static std::atomic<bool> g_teamCheck{true};
 static float g_fovPx = 200.f;
 static float g_smooth = 0.4f;
 static float g_screenW = 2400.f, g_screenH = 1080.f, g_fovY = 90.f;
+static float g_aimHeight = 45.0f;
 
 static std::vector<PlayerOut> g_players;
 static std::mutex g_plMutex;
@@ -43,7 +44,7 @@ static void loop() {
     int tick = 0;
     while (g_run.load()) {
         if (!g_off.localBase) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(400));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             continue;
         }
 
@@ -57,14 +58,23 @@ static void loop() {
         float ly = mr::read_f32(local + g_off.localPos + 4);
         float lz = mr::read_f32(local + g_off.localPos + 8);
 
-        uintptr_t plist = (uintptr_t)mr::read_i32(g_off.plistBase);
-        if (!plist) {
+        // --- ĐỌC CHUẨN CẤU TRÚC LIST<PLAYER> CỦA UNITY ---
+        uintptr_t plist_obj = (uintptr_t)mr::read_i32(g_off.plistBase);
+        if (!plist_obj) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
-        int count = mr::read_i32(plist + g_off.plistCount);
-        if (count <= 0 || count > 200) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        
+        int count = mr::read_i32(plist_obj + g_off.plistCount); // List Count (thường 0x18)
+        if (count <= 0 || count > 60) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
+        // List chứa con trỏ tới mảng _items (thường 0x10)
+        uintptr_t items_ptr = (uintptr_t)mr::read_i32(plist_obj + 0x10); 
+        if (!items_ptr) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
@@ -78,7 +88,9 @@ static void loop() {
         bool haveTarget = false;
 
         for (int i = 0; i < count; i++) {
-            uintptr_t p = plist + (uintptr_t)i * g_off.plistSize;
+            // Đọc từng con trỏ Player trong mảng (64-bit là 8 byte)
+            uintptr_t p = (uintptr_t)mr::read_i32(items_ptr + i * 8); 
+            if (!p) continue;
 
             int32_t team = mr::read_i32(p + g_off.plistTeam);
             float hp = mr::read_f32(p + g_off.plistHp);
@@ -87,6 +99,9 @@ static void loop() {
             float px = mr::read_f32(p + g_off.plistPos);
             float py = mr::read_f32(p + g_off.plistPos + 4);
             float pz = mr::read_f32(p + g_off.plistPos + 8);
+            
+            if (std::abs(px) > 10000.f || std::abs(pz) > 10000.f) continue;
+
             float dx = px - lx, dy = py - ly, dz = pz - lz;
             float d2 = dx * dx + dz * dz;
             if (d2 < 0.25f || d2 > 400.f * 400.f) continue;
@@ -98,8 +113,7 @@ static void loop() {
             if (g_teamCheck.load() && team == lteam) continue;
 
             float hYaw = std::atan2(dx, dz) * 57.2958f;
-            // FIX HEADSHOT: Cộng thêm 55.0f để ngắm lên đầu
-            float hPitch = std::atan2((dy + 55.0f), std::hypot(dx, dz)) * 57.2958f;
+            float hPitch = std::atan2((dy + g_aimHeight), std::hypot(dx, dz)) * 57.2958f;
             
             float curYaw = mr::read_f32(local + g_off.yaw);
             float curPitch = mr::read_f32(local + g_off.pitch);
@@ -139,7 +153,7 @@ static void loop() {
             }
         }
 
-        int sleepMs = (int)jitter(16.f, 0.25f);
+        int sleepMs = (int)jitter(30.f, 0.2f);
         std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
     }
 }
