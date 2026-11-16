@@ -9,27 +9,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    - name: set up JDK 17
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
 
     - name: Setup NDK
       uses: nttld/setup-ndk@v1
       with:
         ndk-version: r25b
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew || true
-
-    - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon || ./gradlew assembleDebug --no-daemon
+    - name: Build with Gradle
+      run: |
+        echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+        echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
+        gradle wrapper --gradle-version 8.5
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
