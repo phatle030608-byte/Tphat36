@@ -1,0 +1,4 @@
+-repackageclasses 'a'
+-allowaccessmodification
+-keepclasseswithmembernames class * { native <methods>; }
+-keep class com.frmod.NativeBridge { *; }
