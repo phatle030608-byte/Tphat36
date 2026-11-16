@@ -98,7 +98,9 @@ static void loop() {
             if (g_teamCheck.load() && team == lteam) continue;
 
             float hYaw = std::atan2(dx, dz) * 57.2958f;
-            float hPitch = std::atan2(dy, std::hypot(dx, dz)) * 57.2958f;
+            // FIX HEADSHOT: Cộng thêm 55.0f để ngắm lên đầu
+            float hPitch = std::atan2((dy + 55.0f), std::hypot(dx, dz)) * 57.2958f;
+            
             float curYaw = mr::read_f32(local + g_off.yaw);
             float curPitch = mr::read_f32(local + g_off.pitch);
             float dYaw = hYaw - curYaw;
