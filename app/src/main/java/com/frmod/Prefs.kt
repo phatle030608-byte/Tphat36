@@ -11,39 +11,24 @@ object Prefs {
         if (!sp.getBoolean("init", false)) {
             sp.edit()
                 .putString("moduleName", "libil2cpp.so")
-                .putString("localBase", "0")
-                .putString("localPos", "0")
-                .putString("yaw", "0")
-                .putString("pitch", "0")
-                .putString("plistBase", "0")
-                .putString("plistCount", "0")
-                .putString("plistSize", "0")
-                .putString("plistPos", "0")
-                .putString("plistTeam", "0")
-                .putString("plistHp", "0")
-                .putFloat("fov", 200f)
-                .putFloat("smooth", 0.4f)
-                .putBoolean("aimOn", true)
-                .putBoolean("espOn", true)
-                .putBoolean("teamCheck", true)
-                .putBoolean("init", true)
-                .apply()
+                .putString("localBase", "0").putString("localPos", "0")
+                .putString("yaw", "0").putString("pitch", "0")
+                .putString("plistBase", "0").putString("plistCount", "0")
+                .putString("plistSize", "0").putString("plistPos", "0")
+                .putString("plistTeam", "0").putString("plistHp", "0")
+                .putFloat("fov", 200f).putFloat("smooth", 0.4f)
+                .putBoolean("aimOn", true).putBoolean("espOn", true)
+                .putBoolean("teamCheck", true).putBoolean("headshotOn", true)
+                .putBoolean("init", true).apply()
         }
     }
 
-    var moduleName: String get() = sp.getString("moduleName", "libil2cpp.so")!!
-        set(v) = sp.edit().putString("moduleName", v).apply()
-
+    var moduleName: String get() = sp.getString("moduleName", "libil2cpp.so")!!; set(v) = sp.edit().putString("moduleName", v).apply()
     fun getHex(k: String): Long {
         val s = sp.getString(k, "0")?.trim() ?: "0"
-        return try {
-            if (s.startsWith("0x")) s.substring(2).toLong(16)
-            else if (s.matches(Regex("[0-9a-fA-F]+"))) s.toLong(16)
-            else s.toLongOrNull() ?: 0L
-        } catch (_: Exception) { 0L }
+        return try { if (s.startsWith("0x")) s.substring(2).toLong(16) else if (s.matches(Regex("[0-9a-fA-F]+"))) s.toLong(16) else s.toLongOrNull() ?: 0L } catch (_: Exception) { 0L }
     }
     fun setHex(k: String, v: String) = sp.edit().putString(k, v).apply()
-
     var localBase: Long get() = getHex("localBase"); set(v) = setHex("localBase", v.toString(16))
     var localPos: Long get() = getHex("localPos"); set(v) = setHex("localPos", v.toString(16))
     var yaw: Long get() = getHex("yaw"); set(v) = setHex("yaw", v.toString(16))
@@ -60,4 +45,5 @@ object Prefs {
     var aimOn: Boolean get() = sp.getBoolean("aimOn", true); set(v) = sp.edit().putBoolean("aimOn", v).apply()
     var espOn: Boolean get() = sp.getBoolean("espOn", true); set(v) = sp.edit().putBoolean("espOn", v).apply()
     var teamCheck: Boolean get() = sp.getBoolean("teamCheck", true); set(v) = sp.edit().putBoolean("teamCheck", v).apply()
+    var headshotOn: Boolean get() = sp.getBoolean("headshotOn", true); set(v) = sp.edit().putBoolean("headshotOn", v).apply()
 }
